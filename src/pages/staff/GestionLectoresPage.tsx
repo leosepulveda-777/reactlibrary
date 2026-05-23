@@ -10,6 +10,11 @@ function estadoLector(l: LectorResponse): 'ACTIVO' | 'SUSPENDIDO' {
   return l.activo ? 'ACTIVO' : 'SUSPENDIDO';
 }
 
+// Iniciales del nombre para el avatar
+function iniciales(l: LectorResponse) {
+  return `${l.nombre?.[0] ?? ''}${l.apellido?.[0] ?? ''}`.toUpperCase();
+}
+
 export function GestionLectoresPage() {
   const toast = useToast();
 
@@ -18,6 +23,7 @@ export function GestionLectoresPage() {
   const [search,     setSearch]     = useState('');
   const [page,       setPage]       = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [totalElem,  setTotalElem]  = useState(0);
   const [selected,   setSelected]   = useState<LectorResponse | null>(null);
 
   useEffect(() => { cargar(); }, [page]);
@@ -30,6 +36,7 @@ export function GestionLectoresPage() {
       const res = await api.get<Page<LectorResponse>>(`/v1/lectores?${params}`);
       setLectores(res.content ?? []);
       setTotalPages(res.totalPages ?? 1);
+      setTotalElem(res.totalElements ?? 0);
     } catch (e) {
       toast((e as Error).message, 'error');
     } finally {
@@ -42,7 +49,9 @@ export function GestionLectoresPage() {
     try {
       await api.patch(`/v1/lectores/${lector.id}/${accion}`);
       toast(`Lector ${activar ? 'activado' : 'suspendido'} correctamente`, 'success');
-      setLectores(prev => prev.map(l => l.id === lector.id ? { ...l, activo: activar } : l));
+      setLectores(prev => prev.map(l =>
+        l.id === lector.id ? { ...l, activo: activar, estado: activar ? 'ACTIVO' : 'SUSPENDIDO' } : l
+      ));
       if (selected?.id === lector.id) setSelected({ ...lector, activo: activar });
     } catch (e) {
       toast((e as Error).message, 'error');
@@ -51,15 +60,21 @@ export function GestionLectoresPage() {
 
   return (
     <div>
-      <div className="mb-7">
-        <h2 className="text-3xl font-bold">Lectores</h2>
-        <p className="text-muted text-sm mt-1">Gestion de usuarios registrados como lectores</p>
+      {/* Encabezado con contador */}
+      <div className="flex items-center justify-between mb-7">
+        <div>
+          <h2 className="text-3xl font-bold">Lectores</h2>
+          <p className="text-muted text-sm mt-1">
+            {!loading && `${totalElem} lectores registrados`}
+          </p>
+        </div>
       </div>
 
+      {/* Barra de búsqueda */}
       <div className="flex gap-3 mb-5">
         <input
           className="flex-1"
-          placeholder="Buscar por nombre o numero de carnet..."
+          placeholder="Buscar por nombre o número de carnet..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && cargar()}
@@ -80,12 +95,11 @@ export function GestionLectoresPage() {
             <table>
               <thead>
                 <tr>
-                  <th>No. Carnet</th>
-                  <th>Nombre completo</th>
-                  <th>Correo</th>
-                  <th>Telefono</th>
-                  <th>Prestamos activos</th>
-                  <th>Multas pendientes</th>
+                  <th>Lector</th>
+                  <th>Carnet</th>
+                  <th>Contacto</th>
+                  <th className="text-center">Préstamos activos</th>
+                  <th className="text-center">Multas pendientes</th>
                   <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
@@ -95,16 +109,41 @@ export function GestionLectoresPage() {
                   const estado = estadoLector(l);
                   return (
                     <tr key={l.id}>
+                      {/* Avatar + nombre */}
+                      <td>
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                            style={{
+                              background: l.activo
+                                ? 'linear-gradient(135deg,#f59e0b,#d97706)'
+                                : '#374151',
+                            }}
+                          >
+                            {iniciales(l)}
+                          </div>
+                          <div>
+                            <div className="font-medium leading-tight">
+                              {l.nombre} {l.apellido}
+                            </div>
+                            <div className="text-xs text-muted">{l.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      {/*  No mostrar ID numérico, solo el carnet legible */}
                       <td className="font-mono text-sm">{l.numeroCarnet}</td>
-                      <td className="font-medium">{l.nombre} {l.apellido}</td>
-                      <td>{l.email}</td>
-                      <td>{l.telefono ?? '—'}</td>
-                      <td className="text-center">{l.prestamosActivos ?? 0}</td>
+                      <td className="text-sm">{l.telefono ?? '—'}</td>
                       <td className="text-center">
-                        {(l.multasPendientes ?? 0) > 0
-                          ? <span className="font-bold text-red-400">{l.multasPendientes}</span>
-                          : <span className="text-muted">0</span>
-                        }
+                        <span className={l.prestamosActivos ? 'font-semibold text-blue-400' : 'text-muted'}>
+                          {l.prestamosActivos ?? 0}
+                        </span>
+                      </td>
+                      <td className="text-center">
+                        {(l.multasPendientes ?? 0) > 0 ? (
+                          <span className="font-bold text-red-400">{l.multasPendientes}</span>
+                        ) : (
+                          <span className="text-muted">0</span>
+                        )}
                       </td>
                       <td><Badge value={estado} /></td>
                       <td>
@@ -142,11 +181,12 @@ export function GestionLectoresPage() {
         </div>
       )}
 
+      {/* Modal de detalle — diseño mejorado con más espacio aprovechado */}
       {selected && (() => {
         const estado = estadoLector(selected);
         return (
           <Modal
-            title={`${selected.nombre} ${selected.apellido}`}
+            title="Detalle del lector"
             onClose={() => setSelected(null)}
             actions={
               <div className="flex gap-2">
@@ -165,35 +205,48 @@ export function GestionLectoresPage() {
               </div>
             }
           >
-            <div className="grid grid-cols-2 gap-4">
-              {([
-                ['No. Carnet',     selected.numeroCarnet],
-                ['Correo',         selected.email],
-                ['Telefono',       selected.telefono ?? '—'],
-                ['Direccion',      selected.direccion ?? '—'],
-                ['Nacimiento',     selected.fechaNacimiento ?? '—'],
-                ['Max. prestamos', String(selected.maxPrestamos ?? 3)],
-              ] as [string, string][]).map(([label, value]) => (
-                <div key={label}>
-                  <div className="text-xs text-muted">{label}</div>
-                  <div className="font-medium">{value}</div>
-                </div>
-              ))}
-              <div>
-                <div className="text-xs text-muted">Prestamos activos</div>
-                <div className="font-medium">{selected.prestamosActivos ?? 0}</div>
+            {/* Avatar y nombre */}
+            <div className="flex items-center gap-4 mb-5 pb-5 border-b border-border">
+              <div
+                className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold text-white shrink-0"
+                style={{
+                  background: selected.activo
+                    ? 'linear-gradient(135deg,#f59e0b,#d97706)'
+                    : '#374151',
+                }}
+              >
+                {iniciales(selected)}
               </div>
               <div>
-                <div className="text-xs text-muted">Multas pendientes</div>
-                <div className={`font-medium ${(selected.multasPendientes ?? 0) > 0 ? 'text-red-400' : ''}`}>
-                  {selected.multasPendientes ?? 0}
-                </div>
-              </div>
-              <div className="col-span-2">
-                <div className="text-xs text-muted mb-1">Estado</div>
-                <Badge value={estado} />
+                <div className="text-lg font-bold">{selected.nombre} {selected.apellido}</div>
+                <div className="text-sm text-muted">{selected.email}</div>
+                <div className="mt-1.5"><Badge value={estado} /></div>
               </div>
             </div>
+
+            {/* Cuadrícula 3 columnas — aprovecha todo el ancho */}
+            <div className="grid grid-cols-3 gap-4">
+              {([
+                ['No. Carnet',      selected.numeroCarnet    || '—'],
+                ['Teléfono',        selected.telefono        || '—'],
+                ['Nacimiento',      selected.fechaNacimiento ? String(selected.fechaNacimiento) : '—'],
+                ['Dirección',       selected.direccion       || '—'],
+                ['Máx. préstamos',  String(selected.maxPrestamos ?? 3)],
+                ['Préstamos activos', String(selected.prestamosActivos ?? 0)],
+              ] as [string, string][]).map(([label, value]) => (
+                <div key={label}>
+                  <div className="text-xs text-muted mb-0.5">{label}</div>
+                  <div className="font-medium text-sm">{value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Multas pendientes destacadas */}
+            {(selected.multasPendientes ?? 0) > 0 && (
+              <div className="mt-4 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                Este lector tiene <strong>{selected.multasPendientes}</strong> multa{selected.multasPendientes !== 1 ? 's' : ''} pendiente{selected.multasPendientes !== 1 ? 's' : ''}.
+              </div>
+            )}
           </Modal>
         );
       })()}

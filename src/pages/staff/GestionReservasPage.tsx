@@ -32,7 +32,7 @@ export function GestionReservasPage() {
   }
 
   async function cancelar(reservaId: number, lectorId: number) {
-    if (!confirm('Cancelar esta reserva?')) return;
+    if (!confirm('¿Cancelar esta reserva?')) return;
     try {
       await api.patch(`/v1/reservas/${reservaId}/cancelar?lectorId=${lectorId}`);
       toast('Reserva cancelada', 'success');
@@ -42,25 +42,29 @@ export function GestionReservasPage() {
     }
   }
 
-  async function aceptar(reservaId: number, lectorId: number) {
-    if (!confirm('Confirmar que el lector recogió el libro?')) return;
+  // ✅ FIX: llama al endpoint correcto /confirmar (no /cancelar)
+  async function confirmarEntrega(reservaId: number) {
+    if (!confirm('¿Confirmar que el lector retiró el libro?')) return;
     try {
-      await api.patch(`/v1/reservas/${reservaId}/cancelar?lectorId=${lectorId}`);
-      toast('Entrega confirmada', 'success');
+      await api.patch(`/v1/reservas/${reservaId}/confirmar`);
+      toast('Entrega confirmada correctamente', 'success');
       cargar();
     } catch (e) {
       toast((e as Error).message, 'error');
     }
   }
 
+  const totalMostradas = reservas.length;
+
   return (
     <div>
       <div className="mb-7">
         <h2 className="text-3xl font-bold">Reservas</h2>
-        <p className="text-muted text-sm mt-1">Gestion de la cola de espera de libros</p>
+        <p className="text-muted text-sm mt-1">Gestión de la cola de espera de libros</p>
       </div>
 
-      <div className="flex gap-3 mb-5">
+      {/* Filtros */}
+      <div className="flex items-center gap-3 mb-5">
         <select
           style={{ width: 220 }}
           value={filtroEstado}
@@ -73,6 +77,11 @@ export function GestionReservasPage() {
           <option value="CANCELADA">Cancelada</option>
           <option value="EXPIRADA">Expirada</option>
         </select>
+        {!loading && (
+          <span className="text-xs text-muted">
+            {totalMostradas} resultado{totalMostradas !== 1 ? 's' : ''}
+          </span>
+        )}
       </div>
 
       {loading ? (
@@ -102,7 +111,10 @@ export function GestionReservasPage() {
                   <tr key={r.id}>
                     <td className="font-medium">{r.tituloLibro ?? '—'}</td>
                     <td>
-                      <div className="font-medium">{r.nombreLector ?? `Lector #${r.lectorId}`}</div>
+                      {/* ✅ FIX: no mostrar IDs crudos, solo nombre y carnet */}
+                      <div className="font-medium">
+                        {r.nombreLector ?? 'Lector desconocido'}
+                      </div>
                       {r.numeroCarnet && (
                         <div className="text-xs text-muted font-mono">{r.numeroCarnet}</div>
                       )}
@@ -117,17 +129,18 @@ export function GestionReservasPage() {
                     <td>
                       <Badge value={r.estado} />
                       {r.estado === 'DISPONIBLE' && (
-                        <div className="text-xs text-yellow-400 mt-0.5">Esperando retiro</div>
+                        <div className="text-xs text-yellow-400 mt-0.5 font-semibold">Esperando retiro</div>
                       )}
                     </td>
                     <td>
                       <div className="flex gap-1.5">
+                        {/* ✅ FIX: botón aceptar llama a confirmarEntrega */}
                         {r.estado === 'DISPONIBLE' && (
                           <button
                             className="btn btn-sm btn-success"
-                            onClick={() => aceptar(r.id, r.lectorId)}
+                            onClick={() => confirmarEntrega(r.id)}
                           >
-                            Aceptar entrega
+                            Confirmar entrega
                           </button>
                         )}
                         {(r.estado === 'PENDIENTE' || r.estado === 'DISPONIBLE') && (

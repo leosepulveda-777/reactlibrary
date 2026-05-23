@@ -18,8 +18,9 @@ const STATE_MAP: Record<string, BadgeVariant> = {
   PRESTADO:     'danger',
   PERDIDO:      'danger',
   SUSPENDIDO:   'danger',
-  CANCELADA:    'muted',
-  EXPIRADA:     'muted',
+  //  FIX: cancelado y expirado en rojo, no gris
+  CANCELADA:    'danger',
+  EXPIRADA:     'danger',
   CONDONADA:    'muted',
   FISICO:       'muted',
 };
