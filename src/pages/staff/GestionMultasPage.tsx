@@ -1,7 +1,3 @@
-// Pagina de gestion de multas para bibliotecario y admin.
-// Permite registrar pagos parciales o totales y condonar multas (solo admin).
-// Cubre US-019, US-020 y US-021.
-
 import { useState, useEffect } from 'react';
 import { api } from '@/api/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -20,17 +16,14 @@ export function GestionMultasPage() {
   const [loading,      setLoading]      = useState(true);
   const [page,         setPage]         = useState(0);
   const [totalPages,   setTotalPages]   = useState(0);
-  const [filtroEstado, setFiltroEstado] = useState('PENDIENTE'); // por defecto pendientes
+  const [filtroEstado, setFiltroEstado] = useState('PENDIENTE');
 
-  // Estado del modal de pago
   const [pagoModal, setPagoModal] = useState<MultaResponse | null>(null);
   const [pago,      setPago]      = useState<PagoMultaRequest>({ monto: 0, metodoPago: 'EFECTIVO' });
 
-  // Estado del modal de condonacion (solo admin)
   const [condModal, setCondModal] = useState<MultaResponse | null>(null);
-  const [cond,      setCond]      = useState<CondonacionRequest>({ monto: 0, motivo: '' });
+  const [cond,      setCond]      = useState<CondonacionRequest>({ motivoCondonacion: '' });
 
-  // Modal de detalle de pagos
   const [detalleModal, setDetalleModal] = useState<MultaResponse | null>(null);
 
   useEffect(() => { cargar(); }, [page, filtroEstado]);
@@ -74,7 +67,6 @@ export function GestionMultasPage() {
     }
   }
 
-  // Resumen de pendientes
   const totalPendiente = multas
     .filter(m => m.estado === 'PENDIENTE')
     .reduce((sum, m) => sum + (Number(m.monto) - Number(m.montoPagado)), 0);
@@ -88,14 +80,12 @@ export function GestionMultasPage() {
         <p className="text-muted text-sm mt-1">Registro de pagos y condonaciones</p>
       </div>
 
-      {/* Resumen rápido */}
       {filtroEstado === 'PENDIENTE' && totalPendiente > 0 && (
         <div className="alert alert-danger mb-5">
           Total pendiente de cobro: <strong>${totalPendiente.toLocaleString()}</strong>
         </div>
       )}
 
-      {/* Filtro por estado */}
       <div className="flex gap-3 mb-5">
         <select
           style={{ width: 220 }}
@@ -156,11 +146,7 @@ export function GestionMultasPage() {
                       <td><Badge value={m.estado} /></td>
                       <td>
                         <div className="flex gap-1.5 flex-wrap">
-                          {/* Ver historial de pagos */}
-                          <button
-                            className="btn btn-sm btn-secondary"
-                            onClick={() => setDetalleModal(m)}
-                          >
+                          <button className="btn btn-sm btn-secondary" onClick={() => setDetalleModal(m)}>
                             Detalle
                           </button>
                           {(m.estado === 'PENDIENTE' || m.estado === 'PARCIALMENTE_PAGADA') && (
@@ -174,7 +160,7 @@ export function GestionMultasPage() {
                           {(m.estado === 'PENDIENTE' || m.estado === 'PARCIALMENTE_PAGADA') && isAdmin && (
                             <button
                               className="btn btn-sm btn-danger"
-                              onClick={() => { setCondModal(m); setCond({ monto: 0, motivo: '' }); }}
+                              onClick={() => { setCondModal(m); setCond({ motivoCondonacion: '' }); }}
                             >
                               Condonar
                             </button>
@@ -191,7 +177,6 @@ export function GestionMultasPage() {
         </div>
       )}
 
-      {/* Modal de detalle / historial de pagos */}
       {detalleModal && (
         <Modal
           title={`Detalle multa — ${detalleModal.tituloLibro ?? ''}`}
@@ -219,8 +204,6 @@ export function GestionMultasPage() {
               </div>
             )}
           </div>
-
-          {/* Historial de pagos */}
           {(detalleModal.pagos?.length ?? 0) > 0 && (
             <>
               <div className="text-sm font-semibold mb-2">Historial de pagos</div>
@@ -251,7 +234,6 @@ export function GestionMultasPage() {
         </Modal>
       )}
 
-      {/* Modal de registro de pago */}
       {pagoModal && (
         <Modal
           title={`Registrar pago — ${pagoModal.tituloLibro ?? `Multa #${pagoModal.id}`}`}
@@ -290,7 +272,6 @@ export function GestionMultasPage() {
         </Modal>
       )}
 
-      {/* Modal de condonacion (solo admin) */}
       {condModal && (
         <Modal
           title={`Condonar multa — ${condModal.tituloLibro ?? `Multa #${condModal.id}`}`}
@@ -311,8 +292,8 @@ export function GestionMultasPage() {
               <label>Motivo de la condonacion</label>
               <textarea
                 rows={3}
-                value={cond.motivo}
-                onChange={e => setCond(prev => ({ ...prev, motivo: e.target.value }))}
+                value={cond.motivoCondonacion}
+                onChange={e => setCond({ motivoCondonacion: e.target.value })}
                 placeholder="Describe el motivo..."
               />
             </div>

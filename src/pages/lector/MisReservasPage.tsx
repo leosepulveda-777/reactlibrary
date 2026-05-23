@@ -131,7 +131,7 @@ export function MisReservasPage() {
                     </td>
                     <td><Badge value={r.estado} /></td>
                     <td>
-                      {(r.estado === 'PENDIENTE' || r.estado === 'LISTA') && (
+                      {(r.estado === 'PENDIENTE' || r.estado === 'DISPONIBLE') && (
                         <button className="btn btn-sm btn-danger" onClick={() => cancelar(r.id)}>
                           Cancelar
                         </button>
@@ -183,7 +183,7 @@ export function MisReservasPage() {
             <div className="border border-border rounded-lg overflow-hidden mb-3">
               {resultados.map(libro => (
                 <div
-                  key={libro.isbn}
+                  key={libro.id}
                   className="flex items-center justify-between px-4 py-2.5 cursor-pointer
                              hover:bg-surface2 border-b border-border last:border-b-0 transition-colors"
                   onClick={() => setLibroSeleccionado(libro)}

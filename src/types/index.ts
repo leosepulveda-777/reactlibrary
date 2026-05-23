@@ -1,7 +1,3 @@
-// Tipos TypeScript que reflejan los DTOs del backend Spring Boot
-
-// ---- Autenticacion -------------------------------------------------------
-
 export type Rol = 'ADMIN' | 'BIBLIOTECARIO' | 'LECTOR';
 
 export interface AuthUser {
@@ -32,8 +28,6 @@ export interface RegisterRequest {
   fechaNacimiento: string;
   password: string;
 }
-
-// ---- Catalogo ------------------------------------------------------------
 
 export interface AutorResponse {
   id: number;
@@ -131,8 +125,6 @@ export interface LibroDigitalRequest {
   tamanioMb: number;
 }
 
-// ---- Lectores ------------------------------------------------------------
-
 export type EstadoLector = 'ACTIVO' | 'SUSPENDIDO';
 
 export interface LectorResponse {
@@ -147,12 +139,10 @@ export interface LectorResponse {
   direccion?: string;
   fechaNacimiento?: string;
   fechaRegistro?: string;
-  // El backend envía `activo` (boolean), NO `estado`
   activo: boolean;
   maxPrestamos?: number;
   prestamosActivos?: number;
   multasPendientes?: number;
-  // Campo derivado para compatibilidad con Badge
   estado?: EstadoLector;
 }
 
@@ -162,10 +152,8 @@ export interface LectorUpdateRequest {
   email?: string;
 }
 
-// ---- Prestamos -----------------------------------------------------------
-
 export type TipoPrestamo   = 'FISICO' | 'DIGITAL';
-export type EstadoPrestamo = 'ACTIVO' | 'DEVUELTO' | 'VENCIDO';
+export type EstadoPrestamo = 'ACTIVO' | 'DEVUELTO' | 'VENCIDO' | 'RENOVADO';
 
 export interface PrestamoResponse {
   id: number;
@@ -189,9 +177,7 @@ export interface PrestamoResponse {
   diasRetraso?: number;
 }
 
-// ---- Reservas ------------------------------------------------------------
-
-export type EstadoReserva = 'PENDIENTE' | 'LISTA' | 'COMPLETADA' | 'EXPIRADA' | 'CANCELADA' | 'DISPONIBLE';
+export type EstadoReserva = 'PENDIENTE' | 'DISPONIBLE' | 'COMPLETADA' | 'EXPIRADA' | 'CANCELADA';
 
 export interface ReservaResponse {
   id: number;
@@ -211,8 +197,6 @@ export interface ReservaResponse {
 export interface ReservaRequest {
   libroId: number;
 }
-
-// ---- Multas --------------------------------------------------------------
 
 export type EstadoMulta = 'PENDIENTE' | 'PARCIALMENTE_PAGADA' | 'PAGADA' | 'CONDONADA';
 
@@ -251,11 +235,8 @@ export interface PagoMultaRequest {
 }
 
 export interface CondonacionRequest {
-  monto: number;
-  motivo: string;
+  motivoCondonacion: string;
 }
-
-// ---- Reportes ------------------------------------------------------------
 
 export interface ReportePrestamosResponse {
   desde?: string;
@@ -291,8 +272,6 @@ export interface ReporteInventarioResponse {
   totalLibrosDigitales: number;
   librosMasPrestados?: LibroResponse[];
 }
-
-// ---- Paginacion generica -------------------------------------------------
 
 export interface Page<T> {
   content: T[];
