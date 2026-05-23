@@ -7,15 +7,16 @@ import { Pagination } from '@/components/Pagination';
 import type { MultaResponse, Page } from '@/types';
 
 export function MisMultasPage() {
-  const toast          = useToast();
-  const { lector }     = useLector();
+  const toast      = useToast();
+  const { lector } = useLector();
 
   const [multas,     setMultas]     = useState<MultaResponse[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [page,       setPage]       = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-  useEffect(() => { cargar(); }, [page, lector]);
+  // lector?.id en vez de lector (objeto) para evitar loop infinito
+  useEffect(() => { cargar(); }, [page, lector?.id]);
 
   async function cargar() {
     if (!lector?.id) return;
@@ -34,7 +35,7 @@ export function MisMultasPage() {
   }
 
   const totalPendiente = multas
-    .filter(m => m.estado === 'PENDIENTE')
+    .filter(m => m.estado === 'PENDIENTE' || m.estado === 'PARCIALMENTE_PAGADA')
     .reduce((sum, m) => sum + (m.monto - m.montoPagado), 0);
 
   return (
@@ -64,7 +65,7 @@ export function MisMultasPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Prestamo</th>
+                  <th>Libro / Prestamo</th>
                   <th>Monto total</th>
                   <th>Monto pagado</th>
                   <th>Pendiente</th>
@@ -77,10 +78,17 @@ export function MisMultasPage() {
                   const pendiente = m.monto - m.montoPagado;
                   return (
                     <tr key={m.id}>
-                      <td>Prestamo #{m.prestamoId}</td>
+                      <td>
+                        <div className="font-medium">
+                          {m.tituloLibro ?? `Prestamo #${m.prestamoId}`}
+                        </div>
+                        {m.diasRetraso != null && (
+                          <div className="text-xs text-red-400">{m.diasRetraso} dias de retraso</div>
+                        )}
+                      </td>
                       <td>${m.monto.toLocaleString()}</td>
                       <td>${m.montoPagado.toLocaleString()}</td>
-                      <td className={m.estado === 'PENDIENTE' ? 'font-bold text-red-400' : ''}>
+                      <td className={pendiente > 0 ? 'font-bold text-red-400' : 'text-muted'}>
                         ${pendiente.toLocaleString()}
                       </td>
                       <td>{m.fechaGeneracion?.split('T')[0]}</td>

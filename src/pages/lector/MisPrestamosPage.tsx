@@ -1,7 +1,3 @@
-// Pagina de prestamos del lector autenticado.
-// Lista prestamos activos e historial, y permite renovar.
-// Cubre US-015 y US-013.
-
 import { useState, useEffect } from 'react';
 import { api } from '@/api/client';
 import { useToast } from '@/contexts/ToastContext';
@@ -11,17 +7,17 @@ import { Pagination } from '@/components/Pagination';
 import type { PrestamoResponse, Page } from '@/types';
 
 export function MisPrestamosPage() {
-  const toast                = useToast();
-  const { lector }           = useLector();
+  const toast      = useToast();
+  const { lector } = useLector();
 
   const [prestamos,  setPrestamos]  = useState<PrestamoResponse[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [page,       setPage]       = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-  useEffect(() => { cargar(); }, [page, lector]);
+  // lector?.id en vez de lector (objeto) para evitar loop infinito
+  useEffect(() => { cargar(); }, [page, lector?.id]);
 
-  // Carga los prestamos del lector usando el id real de la tabla Lector
   async function cargar() {
     if (!lector?.id) return;
     setLoading(true);
@@ -38,7 +34,6 @@ export function MisPrestamosPage() {
     }
   }
 
-  // Llama a PATCH /api/v1/prestamos/{id}/renovar
   async function renovar(id: number) {
     try {
       await api.patch(`/v1/prestamos/${id}/renovar`);
@@ -49,7 +44,6 @@ export function MisPrestamosPage() {
     }
   }
 
-  // Calcula los dias que faltan o que han pasado desde la fecha de devolucion
   function diasRestantes(fecha: string): number {
     return Math.ceil((new Date(fecha).getTime() - Date.now()) / 86_400_000);
   }
@@ -90,15 +84,15 @@ export function MisPrestamosPage() {
                     : null;
 
                   const diasColor =
-                    dias === null ? '' :
-                    dias <= 0    ? 'text-red-400' :
-                    dias <= 3    ? 'text-yellow-400' :
+                    dias === null      ? '' :
+                    dias <= 0          ? 'text-red-400' :
+                    dias <= 3          ? 'text-yellow-400' :
                     'text-muted';
 
                   return (
                     <tr key={p.id}>
                       <td className="font-medium">{p.tituloLibro ?? '—'}</td>
-                      <td><Badge value={p.tipo} /></td>
+                      <td><Badge value={p.esDigital ? 'DIGITAL' : 'FISICO'} /></td>
                       <td>{p.fechaPrestamo?.split('T')[0]}</td>
                       <td>
                         <div>{p.fechaDevolucionEsperada?.split('T')[0]}</div>
@@ -111,9 +105,9 @@ export function MisPrestamosPage() {
                         )}
                       </td>
                       <td><Badge value={p.estado} /></td>
-                      <td>{p.renovaciones} / 2</td>
+                      <td>{p.numeroRenovaciones} / 2</td>
                       <td>
-                        {p.estado === 'ACTIVO' && p.renovaciones < 2 && (
+                        {p.estado === 'ACTIVO' && p.numeroRenovaciones < 2 && (
                           <button
                             className="btn btn-sm btn-secondary"
                             onClick={() => renovar(p.id)}

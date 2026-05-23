@@ -1,14 +1,10 @@
-// Pagina de gestion de reservas para bibliotecario y admin.
-// Muestra todas las reservas paginadas con filtro por estado.
-// Cubre US-018.
-
 import { useState, useEffect } from 'react';
 import { api } from '@/api/client';
 import { useToast } from '@/contexts/ToastContext';
 import { Badge } from '@/components/Badge';
 import { Pagination } from '@/components/Pagination';
 import type { ReservaResponse, Page } from '@/types';
- 
+
 export function GestionReservasPage() {
   const toast = useToast();
 
@@ -20,7 +16,6 @@ export function GestionReservasPage() {
 
   useEffect(() => { cargar(); }, [page, filtroEstado]);
 
-  // Carga todas las reservas con filtro opcional por estado
   async function cargar() {
     setLoading(true);
     try {
@@ -36,7 +31,6 @@ export function GestionReservasPage() {
     }
   }
 
-  // Cancela una reserva desde el panel del bibliotecario
   async function cancelar(reservaId: number, lectorId: number) {
     if (!confirm('Cancelar esta reserva?')) return;
     try {
@@ -52,12 +46,9 @@ export function GestionReservasPage() {
     <div>
       <div className="mb-7">
         <h2 className="text-3xl font-bold">Reservas</h2>
-        <p className="text-muted text-sm mt-1">
-          Gestion de la cola de espera de libros
-        </p>
+        <p className="text-muted text-sm mt-1">Gestion de la cola de espera de libros</p>
       </div>
 
-      {/* Filtro por estado */}
       <div className="flex gap-3 mb-5">
         <select
           style={{ width: 220 }}
@@ -87,9 +78,10 @@ export function GestionReservasPage() {
               <thead>
                 <tr>
                   <th>Libro</th>
-                  <th>ID Lector</th>
-                  <th>Posicion en cola</th>
+                  <th>Lector</th>
+                  <th>Cola</th>
                   <th>Fecha reserva</th>
+                  <th>Expira</th>
                   <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
@@ -98,12 +90,22 @@ export function GestionReservasPage() {
                 {reservas.map(r => (
                   <tr key={r.id}>
                     <td className="font-medium">{r.tituloLibro ?? '—'}</td>
-                    <td className="text-muted">#{r.lectorId}</td>
-                    <td>Posicion {r.posicionCola}</td>
+                    <td>
+                      <div className="font-medium">{r.nombreLector ?? `Lector #${r.lectorId}`}</div>
+                      {r.numeroCarnet && (
+                        <div className="text-xs text-muted font-mono">{r.numeroCarnet}</div>
+                      )}
+                    </td>
+                    <td className="text-center">{r.posicionCola ?? '—'}</td>
                     <td>{r.fechaReserva?.split('T')[0]}</td>
+                    <td>
+                      {r.fechaExpiracion && (
+                        <span className="text-xs text-muted">{r.fechaExpiracion.split('T')[0]}</span>
+                      )}
+                    </td>
                     <td><Badge value={r.estado} /></td>
                     <td>
-                      {r.estado === 'PENDIENTE' && (
+                      {(r.estado === 'PENDIENTE' || r.estado === 'LISTA') && (
                         <button
                           className="btn btn-sm btn-danger"
                           onClick={() => cancelar(r.id, r.lectorId)}

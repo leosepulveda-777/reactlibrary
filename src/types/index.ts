@@ -4,14 +4,13 @@
 
 export type Rol = 'ADMIN' | 'BIBLIOTECARIO' | 'LECTOR';
 
-// Usuario decodificado del JWT
 export interface AuthUser {
   email: string;
   rol: Rol;
-  userId?: number;       // viene como 'userId' en el JWT
-  lectorId?: number;     // no viene en el JWT, se obtiene del backend
+  userId?: number;
+  lectorId?: number;
   nombre?: string;
-  numeroCarnet?: string; // viene en el JWT
+  numeroCarnet?: string;
 }
 
 export interface AuthResponse {
@@ -142,12 +141,19 @@ export interface LectorResponse {
   numeroCarnet: string;
   nombre: string;
   apellido: string;
-  documento: string;
+  documento?: string;
   email: string;
   telefono?: string;
   direccion?: string;
   fechaNacimiento?: string;
-  estado: EstadoLector;
+  fechaRegistro?: string;
+  // El backend envía `activo` (boolean), NO `estado`
+  activo: boolean;
+  maxPrestamos?: number;
+  prestamosActivos?: number;
+  multasPendientes?: number;
+  // Campo derivado para compatibilidad con Badge
+  estado?: EstadoLector;
 }
 
 export interface LectorUpdateRequest {
@@ -165,13 +171,22 @@ export interface PrestamoResponse {
   id: number;
   lectorId: number;
   nombreLector?: string;
+  numeroCarnet?: string;
+  libroId?: number;
   tituloLibro?: string;
-  tipo: TipoPrestamo;
+  isbnLibro?: string;
+  ejemplarId?: number;
+  codigoEjemplar?: string;
+  libroDigitalId?: number;
   fechaPrestamo: string;
   fechaDevolucionEsperada?: string;
   fechaDevolucionReal?: string;
-  renovaciones: number;
   estado: EstadoPrestamo;
+  numeroRenovaciones: number;
+  esDigital: boolean;
+  observaciones?: string;
+  vencido?: boolean;
+  diasRetraso?: number;
 }
 
 // ---- Reservas ------------------------------------------------------------
@@ -181,16 +196,16 @@ export type EstadoReserva = 'PENDIENTE' | 'LISTA' | 'COMPLETADA' | 'EXPIRADA' | 
 export interface ReservaResponse {
   id: number;
   lectorId: number;
-  nombreLector?: string;   
-  numeroCarnet?: string;   
+  nombreLector?: string;
+  numeroCarnet?: string;
   libroId: number;
   tituloLibro?: string;
   fechaReserva: string;
-  fechaDisponible?: string; 
-  fechaExpiracion?: string; 
+  fechaDisponible?: string;
+  fechaExpiracion?: string;
   posicionCola: number;
   estado: EstadoReserva;
-  observaciones?: string;  
+  observaciones?: string;
 }
 
 export interface ReservaRequest {
@@ -199,9 +214,9 @@ export interface ReservaRequest {
 
 // ---- Multas --------------------------------------------------------------
 
-export type EstadoMulta = 'PENDIENTE' | 'PARCIALMENTE_PAGADA' | 'PAGADA' | 'CONDONADA'; 
+export type EstadoMulta = 'PENDIENTE' | 'PARCIALMENTE_PAGADA' | 'PAGADA' | 'CONDONADA';
 
-export interface PagoMultaResponse {  
+export interface PagoMultaResponse {
   id: number;
   multaId: number;
   monto: number;
@@ -215,19 +230,19 @@ export interface PagoMultaResponse {
 export interface MultaResponse {
   id: number;
   lectorId: number;
-  nombreLector?: string;    
-  numeroCarnet?: string;    
+  nombreLector?: string;
+  numeroCarnet?: string;
   prestamoId: number;
-  tituloLibro?: string;   
+  tituloLibro?: string;
   monto: number;
   montoPagado: number;
-  montoPendiente?: number;  
-  diasRetraso?: number;     
+  montoPendiente?: number;
+  diasRetraso?: number;
   estado: EstadoMulta;
   fechaGeneracion: string;
-  fechaPago?: string;       
+  fechaPago?: string;
   motivoCondonacion?: string;
-  pagos?: PagoMultaResponse[]; 
+  pagos?: PagoMultaResponse[];
 }
 
 export interface PagoMultaRequest {
@@ -247,8 +262,8 @@ export interface ReportePrestamosResponse {
   hasta?: string;
   totalPrestamos: number;
   prestamosActivos: number;
-  prestamosVencidos: number;  
-  prestamosDevueltos: number; 
+  prestamosVencidos: number;
+  prestamosDevueltos: number;
   prestamosFisicos: number;
   prestamosDigitales: number;
   detalle?: PrestamoResponse[];
@@ -258,13 +273,13 @@ export interface ReporteMultasResponse {
   desde?: string;
   hasta?: string;
   totalMultas: number;
-  multasPendientes: number;   
-  multasPagadas: number;      
-  multasCondonadas: number;   
+  multasPendientes: number;
+  multasPagadas: number;
+  multasCondonadas: number;
   montoTotal: number;
-  montoCobrado: number;      
+  montoCobrado: number;
   montoPendiente: number;
-  detalle?: MultaResponse[];  
+  detalle?: MultaResponse[];
 }
 
 export interface ReporteInventarioResponse {
@@ -272,9 +287,9 @@ export interface ReporteInventarioResponse {
   totalEjemplares: number;
   ejemplaresDisponibles: number;
   ejemplaresPrestados: number;
-  ejemplaresEnMantenimiento: number; 
-  totalLibrosDigitales: number;      
-  librosMasPrestados?: LibroResponse[]; 
+  ejemplaresEnMantenimiento: number;
+  totalLibrosDigitales: number;
+  librosMasPrestados?: LibroResponse[];
 }
 
 // ---- Paginacion generica -------------------------------------------------

@@ -1,7 +1,3 @@
-// Pagina de gestion de prestamos para bibliotecario y admin.
-// Permite registrar prestamos fisicos y digitales, devolver y renovar.
-// Cubre US-011, US-012, US-013 y US-014.
-
 import { useState, useEffect } from 'react';
 import { api } from '@/api/client';
 import { useToast } from '@/contexts/ToastContext';
@@ -13,22 +9,20 @@ import type { PrestamoResponse, Page, TipoPrestamo } from '@/types';
 export function GestionPrestamosPage() {
   const toast = useToast();
 
-  const [prestamos,   setPrestamos]   = useState<PrestamoResponse[]>([]);
-  const [loading,     setLoading]     = useState(true);
-  const [page,        setPage]        = useState(0);
-  const [totalPages,  setTotalPages]  = useState(0);
+  const [prestamos,    setPrestamos]    = useState<PrestamoResponse[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [page,         setPage]         = useState(0);
+  const [totalPages,   setTotalPages]   = useState(0);
   const [filtroEstado, setFiltroEstado] = useState('');
-  const [showModal,   setShowModal]   = useState(false);
+  const [showModal,    setShowModal]    = useState(false);
 
-  // Formulario para nuevo prestamo
-  const [tipo,        setTipo]        = useState<TipoPrestamo>('FISICO');
-  const [lectorId,    setLectorId]    = useState('');
-  const [ejemplarId,  setEjemplarId]  = useState('');
-  const [digitalId,   setDigitalId]   = useState('');
+  const [tipo,       setTipo]       = useState<TipoPrestamo>('FISICO');
+  const [lectorId,   setLectorId]   = useState('');
+  const [ejemplarId, setEjemplarId] = useState('');
+  const [digitalId,  setDigitalId]  = useState('');
 
   useEffect(() => { cargar(); }, [page, filtroEstado]);
 
-  // Carga todos los prestamos con filtro opcional por estado
   async function cargar() {
     setLoading(true);
     try {
@@ -44,7 +38,6 @@ export function GestionPrestamosPage() {
     }
   }
 
-  // Registra la devolucion de un prestamo y genera multa si hay retraso
   async function devolver(id: number) {
     if (!confirm('Registrar devolucion de este prestamo?')) return;
     try {
@@ -56,7 +49,6 @@ export function GestionPrestamosPage() {
     }
   }
 
-  // Renueva un prestamo activo extendiendo 7 dias
   async function renovar(id: number) {
     try {
       await api.patch(`/v1/prestamos/${id}/renovar`);
@@ -67,7 +59,6 @@ export function GestionPrestamosPage() {
     }
   }
 
-  // Registra un nuevo prestamo fisico o digital
   async function registrar() {
     try {
       if (tipo === 'FISICO') {
@@ -77,7 +68,7 @@ export function GestionPrestamosPage() {
         });
       } else {
         await api.post('/v1/prestamos/digital', {
-          lectorId:      parseInt(lectorId),
+          lectorId:       parseInt(lectorId),
           libroDigitalId: parseInt(digitalId),
         });
       }
@@ -106,7 +97,6 @@ export function GestionPrestamosPage() {
         </button>
       </div>
 
-      {/* Filtro por estado */}
       <div className="flex gap-3 mb-5">
         <select
           style={{ width: 200 }}
@@ -144,7 +134,7 @@ export function GestionPrestamosPage() {
                     <td className="text-muted">#{p.id}</td>
                     <td>{p.nombreLector ?? `ID ${p.lectorId}`}</td>
                     <td className="max-w-[180px] truncate">{p.tituloLibro ?? '—'}</td>
-                    <td><Badge value={p.tipo} /></td>
+                    <td><Badge value={p.esDigital ? 'DIGITAL' : 'FISICO'} /></td>
                     <td>{p.fechaPrestamo?.split('T')[0]}</td>
                     <td>{p.fechaDevolucionEsperada?.split('T')[0]}</td>
                     <td><Badge value={p.estado} /></td>
@@ -155,7 +145,7 @@ export function GestionPrestamosPage() {
                             Devolver
                           </button>
                         )}
-                        {p.estado === 'ACTIVO' && p.renovaciones < 2 && (
+                        {p.estado === 'ACTIVO' && p.numeroRenovaciones < 2 && (
                           <button className="btn btn-sm btn-secondary" onClick={() => renovar(p.id)}>
                             Renovar
                           </button>
@@ -171,7 +161,6 @@ export function GestionPrestamosPage() {
         </div>
       )}
 
-      {/* Modal para registrar nuevo prestamo */}
       {showModal && (
         <Modal
           title="Nuevo prestamo"
@@ -187,7 +176,6 @@ export function GestionPrestamosPage() {
             </>
           }
         >
-          {/* Selector de tipo de prestamo */}
           <div className="flex gap-2 mb-5">
             {(['FISICO', 'DIGITAL'] as TipoPrestamo[]).map(t => (
               <button

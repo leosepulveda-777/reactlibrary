@@ -8,8 +8,8 @@ import { Modal } from '@/components/Modal';
 import type { ReservaResponse, LibroResponse, Page } from '@/types';
 
 export function MisReservasPage() {
-  const toast          = useToast();
-  const { lector }     = useLector();
+  const toast      = useToast();
+  const { lector } = useLector();
 
   const [reservas,   setReservas]   = useState<ReservaResponse[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -17,10 +17,9 @@ export function MisReservasPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [showModal,  setShowModal]  = useState(false);
 
-  // --- estado del buscador de libros ---
-  const [busqueda,       setBusqueda]       = useState('');
-  const [resultados,     setResultados]     = useState<LibroResponse[]>([]);
-  const [buscando,       setBuscando]       = useState(false);
+  const [busqueda,          setBusqueda]          = useState('');
+  const [resultados,        setResultados]        = useState<LibroResponse[]>([]);
+  const [buscando,          setBuscando]          = useState(false);
   const [libroSeleccionado, setLibroSeleccionado] = useState<LibroResponse | null>(null);
 
   useEffect(() => { cargar(); }, [page, lector?.id]);
@@ -52,7 +51,6 @@ export function MisReservasPage() {
     }
   }
 
-  // Busca libros por titulo en el catalogo publico
   async function buscarLibros() {
     if (!busqueda.trim()) return;
     setBuscando(true);
@@ -71,9 +69,7 @@ export function MisReservasPage() {
   async function crearReserva() {
     if (!libroSeleccionado) return;
     try {
-      await api.post(`/v1/reservas/lector/${lector!.id}`, {
-        libroId: libroSeleccionado.id,
-      });
+      await api.post(`/v1/reservas/lector/${lector!.id}`, { libroId: libroSeleccionado.id });
       toast('Reserva creada correctamente', 'success');
       cerrarModal();
       cargar();
@@ -116,7 +112,8 @@ export function MisReservasPage() {
                 <tr>
                   <th>Libro</th>
                   <th>Fecha reserva</th>
-                  <th>Posicion en cola</th>
+                  <th>Cola</th>
+                  <th>Expira</th>
                   <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
@@ -126,10 +123,15 @@ export function MisReservasPage() {
                   <tr key={r.id}>
                     <td className="font-medium">{r.tituloLibro ?? '—'}</td>
                     <td>{r.fechaReserva?.split('T')[0]}</td>
-                    <td>Posicion {r.posicionCola}</td>
+                    <td>#{r.posicionCola ?? '—'}</td>
+                    <td>
+                      {r.fechaExpiracion && (
+                        <span className="text-xs text-muted">{r.fechaExpiracion.split('T')[0]}</span>
+                      )}
+                    </td>
                     <td><Badge value={r.estado} /></td>
                     <td>
-                      {r.estado === 'PENDIENTE' && (
+                      {(r.estado === 'PENDIENTE' || r.estado === 'LISTA') && (
                         <button className="btn btn-sm btn-danger" onClick={() => cancelar(r.id)}>
                           Cancelar
                         </button>
@@ -161,7 +163,6 @@ export function MisReservasPage() {
             </>
           }
         >
-          {/* Buscador por titulo */}
           <div className="form-group mb-3">
             <label>Buscar libro por titulo</label>
             <div className="flex gap-2">
@@ -178,7 +179,6 @@ export function MisReservasPage() {
             </div>
           </div>
 
-          {/* Resultados de busqueda */}
           {resultados.length > 0 && !libroSeleccionado && (
             <div className="border border-border rounded-lg overflow-hidden mb-3">
               {resultados.map(libro => (
@@ -213,7 +213,6 @@ export function MisReservasPage() {
             <p className="text-sm text-muted mb-3">No se encontraron libros con ese titulo.</p>
           )}
 
-          {/* Libro seleccionado */}
           {libroSeleccionado && (
             <div className="bg-surface2 border border-accent rounded-lg px-4 py-3 flex items-center justify-between">
               <div>
@@ -223,10 +222,7 @@ export function MisReservasPage() {
                   {libroSeleccionado.autores?.map(a => `${a.nombre} ${a.apellido}`).join(', ')}
                 </div>
               </div>
-              <button
-                className="btn btn-sm btn-secondary"
-                onClick={() => setLibroSeleccionado(null)}
-              >
+              <button className="btn btn-sm btn-secondary" onClick={() => setLibroSeleccionado(null)}>
                 Cambiar
               </button>
             </div>
