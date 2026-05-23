@@ -1,10 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { api } from '@/api/client';
 import { useToast } from '@/contexts/ToastContext';
 import { Badge } from '@/components/Badge';
 import { Pagination } from '@/components/Pagination';
 import { Modal } from '@/components/Modal';
-import type { PrestamoResponse, Page, TipoPrestamo } from '@/types';
+import type {
+  PrestamoResponse, LectorResponse, LibroResponse,
+  EjemplarResponse, Page, TipoPrestamo,
+} from '@/types';
+
+function useDebounce<T>(value: T, delay = 350): T {
+  const [d, setD] = useState(value);
+  useEffect(() => { const t = setTimeout(() => setD(value), delay); return () => clearTimeout(t); }, [value, delay]);
+  return d;
+}
 
 export function GestionPrestamosPage() {
   const toast = useToast();
@@ -15,11 +24,22 @@ export function GestionPrestamosPage() {
   const [totalPages,   setTotalPages]   = useState(0);
   const [filtroEstado, setFiltroEstado] = useState('');
   const [showModal,    setShowModal]    = useState(false);
+  const [tipo,         setTipo]         = useState<TipoPrestamo>('FISICO');
 
-  const [tipo,       setTipo]       = useState<TipoPrestamo>('FISICO');
-  const [lectorId,   setLectorId]   = useState('');
-  const [ejemplarId, setEjemplarId] = useState('');
-  const [digitalId,  setDigitalId]  = useState('');
+  const [lectorQuery,    setLectorQuery]    = useState('');
+  const [lectorResults,  setLectorResults]  = useState<LectorResponse[]>([]);
+  const [lectorSelected, setLectorSelected] = useState<LectorResponse | null>(null);
+  const [loadingLector,  setLoadingLector]  = useState(false);
+
+  const [libroQuery,    setLibroQuery]    = useState('');
+  const [libroResults,  setLibroResults]  = useState<LibroResponse[]>([]);
+  const [libroSelected, setLibroSelected] = useState<LibroResponse | null>(null);
+  const [loadingLibro,  setLoadingLibro]  = useState(false);
+
+  const [ejemplar, setEjemplar] = useState<EjemplarResponse | null>(null);
+
+  const debouncedLector = useDebounce(lectorQuery);
+  const debouncedLibro  = useDebounce(libroQuery);
 
   useEffect(() => { cargar(); }, [page, filtroEstado]);
 
@@ -31,78 +51,95 @@ export function GestionPrestamosPage() {
       const res = await api.get<Page<PrestamoResponse>>(`/v1/prestamos?${params}`);
       setPrestamos(res.content ?? []);
       setTotalPages(res.totalPages ?? 1);
-    } catch (e) {
-      toast((e as Error).message, 'error');
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { toast((e as Error).message, 'error'); }
+    finally     { setLoading(false); }
   }
 
-  async function devolver(id: number) {
-    if (!confirm('Registrar devolucion de este prestamo?')) return;
-    try {
-      await api.patch(`/v1/prestamos/${id}/devolver`);
-      toast('Devolucion registrada correctamente', 'success');
-      cargar();
-    } catch (e) {
-      toast((e as Error).message, 'error');
-    }
-  }
+  useEffect(() => {
+    if (lectorSelected || debouncedLector.length < 2) { setLectorResults([]); return; }
+    setLoadingLector(true);
+    api.get<Page<LectorResponse>>(`/v1/lectores?search=${encodeURIComponent(debouncedLector)}&size=6`)
+      .then(r => setLectorResults(r.content ?? []))
+      .catch(() => setLectorResults([]))
+      .finally(() => setLoadingLector(false));
+  }, [debouncedLector]);
 
-  async function renovar(id: number) {
-    try {
-      await api.patch(`/v1/prestamos/${id}/renovar`);
-      toast('Prestamo renovado correctamente', 'success');
-      cargar();
-    } catch (e) {
-      toast((e as Error).message, 'error');
-    }
-  }
+  useEffect(() => {
+    if (libroSelected || debouncedLibro.length < 2) { setLibroResults([]); return; }
+    setLoadingLibro(true);
+    api.get<Page<LibroResponse>>(`/v1/catalogo/libros?titulo=${encodeURIComponent(debouncedLibro)}&size=6`)
+      .then(r => setLibroResults(r.content ?? []))
+      .catch(() => setLibroResults([]))
+      .finally(() => setLoadingLibro(false));
+  }, [debouncedLibro]);
+
+  useEffect(() => {
+    if (!libroSelected || tipo !== 'FISICO') { setEjemplar(null); return; }
+    api.get<EjemplarResponse[]>(`/v1/catalogo/libros/${libroSelected.id}/ejemplares`)
+      .then(lista => {
+        const disp = lista.find(e => e.estado === 'DISPONIBLE') ?? null;
+        setEjemplar(disp);
+        if (!disp) toast('No hay ejemplares disponibles para este libro', 'error');
+      })
+      .catch(() => setEjemplar(null));
+  }, [libroSelected, tipo]);
 
   async function registrar() {
+    if (!lectorSelected) { toast('Selecciona un lector', 'error'); return; }
+    if (!libroSelected)  { toast('Selecciona un libro',  'error'); return; }
     try {
       if (tipo === 'FISICO') {
-        await api.post('/v1/prestamos/fisico', {
-          lectorId:   parseInt(lectorId),
-          ejemplarId: parseInt(ejemplarId),
-        });
+        if (!ejemplar) { toast('No hay ejemplares disponibles', 'error'); return; }
+        await api.post('/v1/prestamos/fisico', { lectorId: lectorSelected.id, ejemplarId: ejemplar.id });
       } else {
-        await api.post('/v1/prestamos/digital', {
-          lectorId:       parseInt(lectorId),
-          libroDigitalId: parseInt(digitalId),
-        });
+        const digitalId = libroSelected.digitales?.[0]?.id;
+        if (!digitalId) { toast('Este libro no tiene versión digital', 'error'); return; }
+        await api.post('/v1/prestamos/digital', { lectorId: lectorSelected.id, libroDigitalId: digitalId });
       }
-      toast('Prestamo registrado correctamente', 'success');
-      setShowModal(false);
-      resetForm();
-      cargar();
-    } catch (e) {
-      toast((e as Error).message, 'error');
-    }
+      toast('Préstamo registrado correctamente', 'success');
+      setShowModal(false); resetForm(); cargar();
+    } catch (e) { toast((e as Error).message, 'error'); }
   }
 
   function resetForm() {
-    setLectorId(''); setEjemplarId(''); setDigitalId('');
+    setLectorQuery(''); setLectorSelected(null); setLectorResults([]);
+    setLibroQuery('');  setLibroSelected(null);  setLibroResults([]);
+    setEjemplar(null);  setTipo('FISICO');
   }
+
+  async function devolver(id: number) {
+    if (!confirm('¿Registrar devolución?')) return;
+    try { await api.patch(`/v1/prestamos/${id}/devolver`); toast('Devolución registrada', 'success'); cargar(); }
+    catch (e) { toast((e as Error).message, 'error'); }
+  }
+
+  async function renovar(id: number) {
+    try { await api.patch(`/v1/prestamos/${id}/renovar`); toast('Préstamo renovado', 'success'); cargar(); }
+    catch (e) { toast((e as Error).message, 'error'); }
+  }
+
+  const resultItem: React.CSSProperties = {
+    padding: '9px 12px', cursor: 'pointer', borderBottom: '1px solid #2a2a3e',
+    transition: 'background 0.1s',
+  };
+  const resultBox: React.CSSProperties = {
+    border: '1px solid #333', borderRadius: 6, marginTop: 4,
+    background: '#1a1a2e', maxHeight: 200, overflowY: 'auto',
+  };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-7">
         <div>
-          <h2 className="text-3xl font-bold">Prestamos</h2>
-          <p className="text-muted text-sm mt-1">Registro y gestion de prestamos fisicos y digitales</p>
+          <h2 className="text-3xl font-bold">Préstamos</h2>
+          <p className="text-muted text-sm mt-1">Registro y gestión de préstamos físicos y digitales</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-          Nuevo prestamo
-        </button>
+        <button className="btn btn-primary" onClick={() => setShowModal(true)}>Nuevo préstamo</button>
       </div>
 
       <div className="flex gap-3 mb-5">
-        <select
-          style={{ width: 200 }}
-          value={filtroEstado}
-          onChange={e => { setFiltroEstado(e.target.value); setPage(0); }}
-        >
+        <select style={{ width: 200 }} value={filtroEstado}
+          onChange={e => { setFiltroEstado(e.target.value); setPage(0); }}>
           <option value="">Todos los estados</option>
           <option value="ACTIVO">Activo</option>
           <option value="RENOVADO">Renovado</option>
@@ -116,7 +153,7 @@ export function GestionPrestamosPage() {
       ) : prestamos.length === 0 ? (
         <div className="text-center py-16 text-muted">
           <p className="text-4xl mb-3">--</p>
-          <p>No hay prestamos{filtroEstado ? ` con estado ${filtroEstado}` : ''}</p>
+          <p>No hay préstamos{filtroEstado ? ` con estado ${filtroEstado}` : ''}</p>
         </div>
       ) : (
         <div className="card">
@@ -124,14 +161,8 @@ export function GestionPrestamosPage() {
             <table>
               <thead>
                 <tr>
-                  <th>ID</th>
-                  <th>Lector</th>
-                  <th>Libro</th>
-                  <th>Tipo</th>
-                  <th>Fecha prestamo</th>
-                  <th>Devolucion esperada</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
+                  <th>ID</th><th>Lector</th><th>Libro</th><th>Tipo</th>
+                  <th>Fecha préstamo</th><th>Devolución esperada</th><th>Estado</th><th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -140,9 +171,7 @@ export function GestionPrestamosPage() {
                     <td className="text-muted">#{p.id}</td>
                     <td>
                       <div className="font-medium">{p.nombreLector ?? `ID ${p.lectorId}`}</div>
-                      {p.numeroCarnet && (
-                        <div className="text-xs text-muted font-mono">{p.numeroCarnet}</div>
-                      )}
+                      {p.numeroCarnet && <div className="text-xs text-muted font-mono">{p.numeroCarnet}</div>}
                     </td>
                     <td className="max-w-[180px] truncate">{p.tituloLibro ?? '—'}</td>
                     <td><Badge value={p.esDigital ? 'DIGITAL' : 'FISICO'} /></td>
@@ -151,22 +180,16 @@ export function GestionPrestamosPage() {
                       <span className={p.vencido ? 'text-red-400 font-semibold' : ''}>
                         {p.fechaDevolucionEsperada?.split('T')[0]}
                       </span>
-                      {p.vencido && (
-                        <div className="text-xs text-red-400">{p.diasRetraso}d de atraso</div>
-                      )}
+                      {p.vencido && <div className="text-xs text-red-400">{p.diasRetraso}d de atraso</div>}
                     </td>
                     <td><Badge value={p.estado} /></td>
                     <td>
                       <div className="flex gap-1.5">
                         {(p.estado === 'ACTIVO' || p.estado === 'RENOVADO' || p.estado === 'VENCIDO') && (
-                          <button className="btn btn-sm btn-success" onClick={() => devolver(p.id)}>
-                            Devolver
-                          </button>
+                          <button className="btn btn-sm btn-success" onClick={() => devolver(p.id)}>Devolver</button>
                         )}
                         {(p.estado === 'ACTIVO' || p.estado === 'RENOVADO') && p.numeroRenovaciones < 2 && (
-                          <button className="btn btn-sm btn-secondary" onClick={() => renovar(p.id)}>
-                            Renovar
-                          </button>
+                          <button className="btn btn-sm btn-secondary" onClick={() => renovar(p.id)}>Renovar</button>
                         )}
                       </div>
                     </td>
@@ -181,60 +204,115 @@ export function GestionPrestamosPage() {
 
       {showModal && (
         <Modal
-          title="Nuevo prestamo"
+          title="Nuevo préstamo"
           onClose={() => { setShowModal(false); resetForm(); }}
           actions={
             <>
-              <button className="btn btn-secondary" onClick={() => { setShowModal(false); resetForm(); }}>
-                Cancelar
-              </button>
-              <button className="btn btn-primary" onClick={registrar}>
-                Registrar
-              </button>
+              <button className="btn btn-secondary" onClick={() => { setShowModal(false); resetForm(); }}>Cancelar</button>
+              <button className="btn btn-primary" onClick={registrar}>Registrar</button>
             </>
           }
         >
           <div className="flex gap-2 mb-5">
             {(['FISICO', 'DIGITAL'] as TipoPrestamo[]).map(t => (
-              <button
-                key={t}
+              <button key={t}
                 className={`btn ${tipo === t ? 'btn-primary' : 'btn-secondary'}`}
-                onClick={() => setTipo(t)}
-              >
+                onClick={() => { setTipo(t); setLibroSelected(null); setLibroQuery(''); setEjemplar(null); }}>
                 {t}
               </button>
             ))}
           </div>
 
           <div className="flex flex-col gap-4">
+
             <div className="form-group">
-              <label>ID del lector</label>
-              <input
-                type="number"
-                value={lectorId}
-                onChange={e => setLectorId(e.target.value)}
-              />
+              <label>Lector</label>
+              {lectorSelected ? (
+                <div style={{ background: '#1a1a2e', borderRadius: 6, padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <span className="font-medium">{lectorSelected.nombre} {lectorSelected.apellido}</span>
+                    <span className="text-xs text-muted ml-2 font-mono">{lectorSelected.numeroCarnet}</span>
+                  </div>
+                  <button className="text-xs text-muted hover:text-white"
+                    onClick={() => { setLectorSelected(null); setLectorQuery(''); }}>✕ cambiar</button>
+                </div>
+              ) : (
+                <div>
+                  <input type="text" placeholder="Escribe el nombre del lector..."
+                    value={lectorQuery} autoFocus onChange={e => setLectorQuery(e.target.value)} />
+                  {loadingLector && <div className="text-xs text-muted mt-1">Buscando...</div>}
+                  {lectorResults.length > 0 && (
+                    <div style={resultBox}>
+                      {lectorResults.map(l => (
+                        <div key={l.id} style={resultItem}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#2a2a3e')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                          onClick={() => { setLectorSelected(l); setLectorQuery(''); setLectorResults([]); }}>
+                          <div className="font-medium">{l.nombre} {l.apellido}</div>
+                          <div className="text-xs text-muted font-mono">{l.numeroCarnet} · {l.email}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {!loadingLector && lectorQuery.length >= 2 && lectorResults.length === 0 && (
+                    <div className="text-xs text-muted mt-1">Sin resultados para "{lectorQuery}"</div>
+                  )}
+                </div>
+              )}
             </div>
 
-            {tipo === 'FISICO' ? (
-              <div className="form-group">
-                <label>ID del ejemplar fisico</label>
-                <input
-                  type="number"
-                  value={ejemplarId}
-                  onChange={e => setEjemplarId(e.target.value)}
-                />
-              </div>
-            ) : (
-              <div className="form-group">
-                <label>ID del libro digital</label>
-                <input
-                  type="number"
-                  value={digitalId}
-                  onChange={e => setDigitalId(e.target.value)}
-                />
-              </div>
-            )}
+            <div className="form-group">
+              <label>Libro {tipo === 'DIGITAL' ? '(digital)' : '(físico)'}</label>
+              {libroSelected ? (
+                <div style={{ background: '#1a1a2e', borderRadius: 6, padding: '10px 12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span className="font-medium">{libroSelected.titulo}</span>
+                    <button className="text-xs text-muted hover:text-white"
+                      onClick={() => { setLibroSelected(null); setLibroQuery(''); setEjemplar(null); }}>✕ cambiar</button>
+                  </div>
+                  {tipo === 'FISICO' && (
+                    <div className="text-xs mt-1">
+                      {ejemplar
+                        ? <span style={{ color: '#4ade80' }}>✓ Ejemplar listo: <span className="font-mono">{ejemplar.codigoBarras}</span>{ejemplar.ubicacion ? ` · ${ejemplar.ubicacion}` : ''}</span>
+                        : <span className="text-red-400">✗ Sin ejemplares disponibles</span>}
+                    </div>
+                  )}
+                  {tipo === 'DIGITAL' && (
+                    <div className="text-xs mt-1">
+                      {libroSelected.digitales?.length
+                        ? <span style={{ color: '#4ade80' }}>✓ Digital disponible ({libroSelected.digitales[0].formato})</span>
+                        : <span className="text-red-400">✗ No tiene versión digital</span>}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <input type="text" placeholder="Escribe el título del libro..."
+                    value={libroQuery} onChange={e => setLibroQuery(e.target.value)} />
+                  {loadingLibro && <div className="text-xs text-muted mt-1">Buscando...</div>}
+                  {libroResults.length > 0 && (
+                    <div style={resultBox}>
+                      {libroResults.map(l => (
+                        <div key={l.id} style={resultItem}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#2a2a3e')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                          onClick={() => { setLibroSelected(l); setLibroQuery(''); setLibroResults([]); }}>
+                          <div className="font-medium">{l.titulo}</div>
+                          <div className="text-xs text-muted">
+                            {l.autores?.map(a => `${a.nombre} ${a.apellido}`).join(', ')}
+                            {l.ejemplaresDisponibles !== undefined && <span className="ml-2">· {l.ejemplaresDisponibles} disp.</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {!loadingLibro && libroQuery.length >= 2 && libroResults.length === 0 && (
+                    <div className="text-xs text-muted mt-1">Sin resultados para "{libroQuery}"</div>
+                  )}
+                </div>
+              )}
+            </div>
+
           </div>
         </Modal>
       )}
