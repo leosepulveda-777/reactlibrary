@@ -15,7 +15,6 @@ export function MisPrestamosPage() {
   const [page,       setPage]       = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-  // lector?.id en vez de lector (objeto) para evitar loop infinito
   useEffect(() => { cargar(); }, [page, lector?.id]);
 
   async function cargar() {
@@ -84,10 +83,12 @@ export function MisPrestamosPage() {
                     : null;
 
                   const diasColor =
-                    dias === null      ? '' :
-                    dias <= 0          ? 'text-red-400' :
-                    dias <= 3          ? 'text-yellow-400' :
+                    dias === null ? '' :
+                    dias <= 0    ? 'text-red-400 font-semibold' :
+                    dias <= 3    ? 'text-yellow-400' :
                     'text-muted';
+
+                  const activo = p.estado === 'ACTIVO' || p.estado === 'RENOVADO';
 
                   return (
                     <tr key={p.id}>
@@ -96,18 +97,20 @@ export function MisPrestamosPage() {
                       <td>{p.fechaPrestamo?.split('T')[0]}</td>
                       <td>
                         <div>{p.fechaDevolucionEsperada?.split('T')[0]}</div>
-                        {p.estado === 'ACTIVO' && dias !== null && (
+                        {activo && dias !== null && (
                           <div className={`text-xs ${diasColor}`}>
                             {dias <= 0
                               ? `${Math.abs(dias)} dias vencido`
+                              : dias <= 3
+                              ? `⚠ ${dias} dias restantes`
                               : `${dias} dias restantes`}
                           </div>
                         )}
                       </td>
                       <td><Badge value={p.estado} /></td>
-                      <td>{p.numeroRenovaciones} / 2</td>
+                      <td className="text-center">{p.numeroRenovaciones} / 2</td>
                       <td>
-                        {p.estado === 'ACTIVO' && p.numeroRenovaciones < 2 && (
+                        {activo && p.numeroRenovaciones < 2 && (
                           <button
                             className="btn btn-sm btn-secondary"
                             onClick={() => renovar(p.id)}

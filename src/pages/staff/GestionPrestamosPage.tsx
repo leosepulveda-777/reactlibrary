@@ -105,6 +105,7 @@ export function GestionPrestamosPage() {
         >
           <option value="">Todos los estados</option>
           <option value="ACTIVO">Activo</option>
+          <option value="RENOVADO">Renovado</option>
           <option value="DEVUELTO">Devuelto</option>
           <option value="VENCIDO">Vencido</option>
         </select>
@@ -112,6 +113,11 @@ export function GestionPrestamosPage() {
 
       {loading ? (
         <div className="text-center py-10 text-muted">Cargando...</div>
+      ) : prestamos.length === 0 ? (
+        <div className="text-center py-16 text-muted">
+          <p className="text-4xl mb-3">--</p>
+          <p>No hay prestamos{filtroEstado ? ` con estado ${filtroEstado}` : ''}</p>
+        </div>
       ) : (
         <div className="card">
           <div className="table-wrap">
@@ -132,20 +138,32 @@ export function GestionPrestamosPage() {
                 {prestamos.map(p => (
                   <tr key={p.id}>
                     <td className="text-muted">#{p.id}</td>
-                    <td>{p.nombreLector ?? `ID ${p.lectorId}`}</td>
+                    <td>
+                      <div className="font-medium">{p.nombreLector ?? `ID ${p.lectorId}`}</div>
+                      {p.numeroCarnet && (
+                        <div className="text-xs text-muted font-mono">{p.numeroCarnet}</div>
+                      )}
+                    </td>
                     <td className="max-w-[180px] truncate">{p.tituloLibro ?? '—'}</td>
                     <td><Badge value={p.esDigital ? 'DIGITAL' : 'FISICO'} /></td>
                     <td>{p.fechaPrestamo?.split('T')[0]}</td>
-                    <td>{p.fechaDevolucionEsperada?.split('T')[0]}</td>
+                    <td>
+                      <span className={p.vencido ? 'text-red-400 font-semibold' : ''}>
+                        {p.fechaDevolucionEsperada?.split('T')[0]}
+                      </span>
+                      {p.vencido && (
+                        <div className="text-xs text-red-400">{p.diasRetraso}d de atraso</div>
+                      )}
+                    </td>
                     <td><Badge value={p.estado} /></td>
                     <td>
                       <div className="flex gap-1.5">
-                        {p.estado === 'ACTIVO' && (
+                        {(p.estado === 'ACTIVO' || p.estado === 'RENOVADO' || p.estado === 'VENCIDO') && (
                           <button className="btn btn-sm btn-success" onClick={() => devolver(p.id)}>
                             Devolver
                           </button>
                         )}
-                        {p.estado === 'ACTIVO' && p.numeroRenovaciones < 2 && (
+                        {(p.estado === 'ACTIVO' || p.estado === 'RENOVADO') && p.numeroRenovaciones < 2 && (
                           <button className="btn btn-sm btn-secondary" onClick={() => renovar(p.id)}>
                             Renovar
                           </button>

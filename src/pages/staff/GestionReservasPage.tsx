@@ -42,6 +42,17 @@ export function GestionReservasPage() {
     }
   }
 
+  async function aceptar(reservaId: number, lectorId: number) {
+    if (!confirm('Confirmar que el lector recogió el libro?')) return;
+    try {
+      await api.patch(`/v1/reservas/${reservaId}/cancelar?lectorId=${lectorId}`);
+      toast('Entrega confirmada', 'success');
+      cargar();
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
+  }
+
   return (
     <div>
       <div className="mb-7">
@@ -57,7 +68,7 @@ export function GestionReservasPage() {
         >
           <option value="">Todos los estados</option>
           <option value="PENDIENTE">Pendiente</option>
-          <option value="LISTA">Lista</option>
+          <option value="DISPONIBLE">Lista para recoger</option>
           <option value="COMPLETADA">Completada</option>
           <option value="CANCELADA">Cancelada</option>
           <option value="EXPIRADA">Expirada</option>
@@ -103,16 +114,31 @@ export function GestionReservasPage() {
                         <span className="text-xs text-muted">{r.fechaExpiracion.split('T')[0]}</span>
                       )}
                     </td>
-                    <td><Badge value={r.estado} /></td>
                     <td>
-                      {(r.estado === 'PENDIENTE' || r.estado === 'LISTA') && (
-                        <button
-                          className="btn btn-sm btn-danger"
-                          onClick={() => cancelar(r.id, r.lectorId)}
-                        >
-                          Cancelar
-                        </button>
+                      <Badge value={r.estado} />
+                      {r.estado === 'DISPONIBLE' && (
+                        <div className="text-xs text-yellow-400 mt-0.5">Esperando retiro</div>
                       )}
+                    </td>
+                    <td>
+                      <div className="flex gap-1.5">
+                        {r.estado === 'DISPONIBLE' && (
+                          <button
+                            className="btn btn-sm btn-success"
+                            onClick={() => aceptar(r.id, r.lectorId)}
+                          >
+                            Aceptar entrega
+                          </button>
+                        )}
+                        {(r.estado === 'PENDIENTE' || r.estado === 'DISPONIBLE') && (
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() => cancelar(r.id, r.lectorId)}
+                          >
+                            Cancelar
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

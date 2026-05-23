@@ -123,16 +123,26 @@ export function MisReservasPage() {
                   <tr key={r.id}>
                     <td className="font-medium">{r.tituloLibro ?? '—'}</td>
                     <td>{r.fechaReserva?.split('T')[0]}</td>
-                    <td>#{r.posicionCola ?? '—'}</td>
+                    <td className="text-center">#{r.posicionCola ?? '—'}</td>
                     <td>
                       {r.fechaExpiracion && (
                         <span className="text-xs text-muted">{r.fechaExpiracion.split('T')[0]}</span>
                       )}
                     </td>
-                    <td><Badge value={r.estado} /></td>
+                    <td>
+                      <Badge value={r.estado} />
+                      {r.estado === 'DISPONIBLE' && (
+                        <div className="text-xs text-yellow-400 mt-0.5 font-semibold">
+                          ¡Libro listo para recoger!
+                        </div>
+                      )}
+                    </td>
                     <td>
                       {(r.estado === 'PENDIENTE' || r.estado === 'DISPONIBLE') && (
-                        <button className="btn btn-sm btn-danger" onClick={() => cancelar(r.id)}>
+                        <button
+                          className="btn btn-sm btn-danger"
+                          onClick={() => cancelar(r.id)}
+                        >
                           Cancelar
                         </button>
                       )}
