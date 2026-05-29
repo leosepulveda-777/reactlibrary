@@ -95,7 +95,7 @@ export interface LibroRequest {
   editorial?: string;
   anioPublicacion?: number;
   sinopsis?: string;
-  imagenUrl?: string;
+  imagenPortada?: string; // ✅ nombre correcto que espera el backend
   tipo: TipoLibro;
   autorIds?: number[];
   categoriaIds?: number[];
@@ -120,7 +120,7 @@ export interface EjemplarRequest {
 
 export interface LibroDigitalRequest {
   libroId: number;
-  urlDescarga: string;
+  urlArchivo: string; // ✅ nombre correcto que espera el backend (antes era urlDescarga)
   formato: string;
   tamanioMb: number;
 }

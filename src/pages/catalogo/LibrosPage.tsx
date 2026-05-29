@@ -18,7 +18,7 @@ function generarISBN(): string {
 
 const FORM_VACIO: LibroRequest = {
   isbn: '', titulo: '', editorial: '', anioPublicacion: undefined,
-  sinopsis: '', imagenUrl: '', tipo: 'FISICO', autorIds: [], categoriaIds: [],
+  sinopsis: '', imagenPortada: '', tipo: 'FISICO', autorIds: [], categoriaIds: [], // ✅ imagenPortada
 };
 
 function useDebounce<T>(value: T, delay = 350): T {
@@ -93,12 +93,12 @@ export function LibrosPage() {
         if ((body.tipo === 'FISICO' || body.tipo === 'AMBOS') && nuevoLibro?.id) {
           const isbn = body.isbn.replace(/-/g, '').substring(0, 8);
           await api.post('/v1/catalogo/ejemplares', {
-            libroId: nuevoLibro.id, codigoBarras: `INV-${isbn}-01`,
+            libroId: nuevoLibro.id, codigoInventario: `INV-${isbn}-01`,
             ubicacion: 'Estante A-1', estado: 'DISPONIBLE',
           });
         }
         if ((body.tipo === 'DIGITAL' || body.tipo === 'AMBOS') && nuevoLibro?.id && urlDigital) {
-          const req: LibroDigitalRequest = { libroId: nuevoLibro.id, urlDescarga: urlDigital, formato: 'PDF', tamanioMb: 0 };
+          const req: LibroDigitalRequest = { libroId: nuevoLibro.id, urlArchivo: urlDigital, formato: 'PDF', tamanioMb: 0 }; // ✅ urlArchivo
           await api.post('/v1/catalogo/libros-digitales', req).catch(() => null);
         }
         toast('Libro creado correctamente', 'success');
@@ -126,7 +126,7 @@ export function LibrosPage() {
     setForm({
       isbn: libro.isbn, titulo: libro.titulo, editorial: libro.editorial ?? '',
       anioPublicacion: libro.anioPublicacion, sinopsis: libro.sinopsis ?? '',
-      imagenUrl: libro.imagenUrl ?? '', tipo: libro.tipo,
+      imagenPortada: libro.imagenUrl ?? '', tipo: libro.tipo, // ✅ imagenPortada
       autorIds: libro.autores?.map(a => a.id) ?? [],
       categoriaIds: libro.categorias?.map(c => c.id) ?? [],
     });
@@ -253,7 +253,7 @@ export function LibrosPage() {
 
             <div className="form-group">
               <label>URL imagen de portada</label>
-              <input value={form.imagenUrl ?? ''} onChange={campo('imagenUrl')} placeholder="https://..." />
+              <input value={form.imagenPortada ?? ''} onChange={campo('imagenPortada')} placeholder="https://..." /> {/* ✅ imagenPortada */}
             </div>
 
             <div className="form-group">
