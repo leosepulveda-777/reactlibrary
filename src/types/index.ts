@@ -22,13 +22,13 @@ export interface LoginRequest {
 export interface RegisterRequest {
   nombre: string;
   apellido: string;
+  documento: string;
   email: string;
   telefono: string;
   direccion: string;
   fechaNacimiento: string;
   password: string;
 }
-
 export interface AutorResponse {
   id: number;
   nombre: string;

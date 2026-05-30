@@ -1,6 +1,3 @@
-// Barra de navegacion lateral.
-// Muestra rutas distintas segun el rol del usuario (LECTOR, BIBLIOTECARIO, ADMIN).
-
 import { useAuth } from '@/contexts/AuthContext';
 import type { Rol } from '@/types';
 
@@ -11,30 +8,34 @@ interface NavItemDef {
   key: PageKey;
 }
 
-// Rutas para el lector
 const LECTOR_ITEMS: NavItemDef[] = [
-  { label: 'Catalogo',       key: 'catalogo'      },
-  { label: 'Mis prestamos',  key: 'mis-prestamos' },
-  { label: 'Mis reservas',   key: 'mis-reservas'  },
-  { label: 'Mis multas',     key: 'mis-multas'    },
-  { label: 'Mi perfil',      key: 'mi-perfil'     },
+  { label: 'Catálogo',      key: 'catalogo'      },
+  { label: 'Mis préstamos', key: 'mis-prestamos' },
+  { label: 'Mis reservas',  key: 'mis-reservas'  },
+  { label: 'Mis multas',    key: 'mis-multas'    },
+  { label: 'Mi perfil',     key: 'mi-perfil'     },
 ];
 
-// Rutas de gestion para bibliotecario y admin
 const STAFF_ITEMS: NavItemDef[] = [
-  { label: 'Prestamos',  key: 'prestamos' },
+  { label: 'Préstamos',  key: 'prestamos' },
   { label: 'Lectores',   key: 'lectores'  },
   { label: 'Multas',     key: 'multas'    },
   { label: 'Reservas',   key: 'reservas'  },
   { label: 'Reportes',   key: 'reportes'  },
 ];
 
-// Rutas de edicion del catalogo
 const CATALOGO_ITEMS: NavItemDef[] = [
   { label: 'Libros',      key: 'libros'     },
   { label: 'Autores',     key: 'autores'    },
-  { label: 'Categorias',  key: 'categorias' },
+  { label: 'Categorías',  key: 'categorias' },
 ];
+
+// Páginas permitidas por rol — el lector nunca puede ver páginas de staff
+const PAGINAS_PERMITIDAS: Record<Rol, string[]> = {
+  LECTOR: ['catalogo', 'mis-prestamos', 'mis-reservas', 'mis-multas', 'mi-perfil'],
+  BIBLIOTECARIO: ['prestamos', 'lectores', 'multas', 'reservas', 'reportes', 'libros', 'autores', 'categorias', 'catalogo'],
+  ADMIN: ['prestamos', 'lectores', 'multas', 'reservas', 'reportes', 'libros', 'autores', 'categorias', 'catalogo'],
+};
 
 interface SidebarProps {
   page: PageKey;
@@ -47,11 +48,14 @@ export function Sidebar({ page, setPage }: SidebarProps) {
   const nombre    = user?.nombre ?? user?.email?.split('@')[0] ?? 'Usuario';
   const inicial   = nombre[0]?.toUpperCase() ?? 'U';
 
-  // Elemento de navegacion con estado activo
+  // Protección: si la página actual no está permitida para el rol, redirigir
+  const permitidas = PAGINAS_PERMITIDAS[rol] ?? [];
+  const paginaActual = permitidas.includes(page) ? page : permitidas[0];
+
   function NavItem({ label, k }: { label: string; k: PageKey }) {
     return (
       <div
-        className={`nav-item ${page === k ? 'active' : ''}`}
+        className={`nav-item ${paginaActual === k ? 'active' : ''}`}
         onClick={() => setPage(k)}
       >
         {label}
@@ -59,7 +63,6 @@ export function Sidebar({ page, setPage }: SidebarProps) {
     );
   }
 
-  // Separador de seccion
   function Section({ label }: { label: string }) {
     return (
       <div className="px-6 pt-4 pb-1.5 text-[10px] tracking-[1.5px] uppercase text-muted select-none">
@@ -70,7 +73,6 @@ export function Sidebar({ page, setPage }: SidebarProps) {
 
   return (
     <aside className="w-60 bg-surface border-r border-border flex flex-col fixed top-0 left-0 h-screen overflow-y-auto z-50">
-      {/* Logo y nombre del sistema */}
       <div className="px-6 py-6 border-b border-border">
         <h1 className="font-display text-2xl text-accent">BiblioSystem</h1>
         <span className="text-[11px] text-muted tracking-widest uppercase">
@@ -78,7 +80,6 @@ export function Sidebar({ page, setPage }: SidebarProps) {
         </span>
       </div>
 
-      {/* Navegacion segun rol */}
       <nav className="flex-1 py-4">
         {rol === 'LECTOR' && (
           <>
@@ -89,22 +90,20 @@ export function Sidebar({ page, setPage }: SidebarProps) {
 
         {(rol === 'BIBLIOTECARIO' || rol === 'ADMIN') && (
           <>
-            <Section label="Gestion" />
+            <Section label="Gestión" />
             {STAFF_ITEMS.map(i => <NavItem key={i.key} label={i.label} k={i.key} />)}
 
-            <Section label="Catalogo" />
+            <Section label="Catálogo" />
             {CATALOGO_ITEMS.map(i => <NavItem key={i.key} label={i.label} k={i.key} />)}
 
-            <Section label="Busqueda" />
-            <NavItem label="Catalogo publico" k="catalogo" />
+            <Section label="Búsqueda" />
+            <NavItem label="Catálogo público" k="catalogo" />
           </>
         )}
       </nav>
 
-      {/* Informacion del usuario y boton de logout */}
       <div className="px-6 py-4 border-t border-border">
         <div className="flex items-center gap-2.5">
-          {/* Avatar con inicial del nombre */}
           <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center font-bold text-sm text-black flex-shrink-0">
             {inicial}
           </div>
@@ -115,7 +114,7 @@ export function Sidebar({ page, setPage }: SidebarProps) {
           <button
             className="text-muted hover:text-red-400 bg-transparent border-none cursor-pointer text-lg"
             onClick={logout}
-            title="Cerrar sesion"
+            title="Cerrar sesión"
           >
             salir
           </button>

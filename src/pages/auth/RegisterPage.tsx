@@ -1,6 +1,3 @@
-// Pagina de registro de lector.
-// Llama a POST /api/v1/auth/register y luego inicia sesion automaticamente.
-
 import { useState } from 'react';
 import { api } from '@/api/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,17 +5,17 @@ import { useToast } from '@/contexts/ToastContext';
 import type { RegisterRequest } from '@/types';
 
 interface RegisterPageProps {
-  onSwitch: () => void; // Cambia a la vista de login
+  onSwitch: () => void;
 }
 
-// Definicion de los campos del formulario: [campo, label, tipo de input]
 const FIELDS: Array<[keyof RegisterRequest, string, string]> = [
-  ['nombre',           'Nombre',             'text'],
-  ['apellido',         'Apellido',            'text'],
-  ['email',            'Correo electronico',  'email'],
-  ['telefono',         'Telefono',            'text'],
-  ['fechaNacimiento',  'Fecha de nacimiento', 'date'],
-  ['password',         'Contrasena',          'password'],
+  ['nombre',          'Nombre',              'text'],
+  ['apellido',        'Apellido',            'text'],
+  ['documento',       'Número de documento', 'text'],
+  ['email',           'Correo electronico',  'email'],
+  ['telefono',        'Telefono',            'text'],
+  ['fechaNacimiento', 'Fecha de nacimiento', 'date'],
+  ['password',        'Contrasena',          'password'],
 ];
 
 export function RegisterPage({ onSwitch }: RegisterPageProps) {
@@ -26,13 +23,12 @@ export function RegisterPage({ onSwitch }: RegisterPageProps) {
   const toast     = useToast();
 
   const [form, setForm] = useState<RegisterRequest>({
-    nombre: '', apellido: '', email: '',
+    nombre: '', apellido: '', documento: '', email: '',
     telefono: '', direccion: '', fechaNacimiento: '', password: '',
   });
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState('');
 
-  // Actualiza un campo especifico del formulario
   const handleChange = (key: keyof RegisterRequest) =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm(prev => ({ ...prev, [key]: e.target.value }));
@@ -66,7 +62,7 @@ export function RegisterPage({ onSwitch }: RegisterPageProps) {
             <div
               key={key}
               className={`form-group ${
-                key === 'password' ? 'col-span-2' : ''
+                key === 'password' || key === 'documento' ? 'col-span-2' : ''
               }`}
             >
               <label>{label}</label>
